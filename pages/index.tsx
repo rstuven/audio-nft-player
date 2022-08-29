@@ -65,6 +65,12 @@ const getAudioLists = async function* (owner: string) {
   } while (pageKey);
 };
 
+export async function getStaticProps() {
+  return {
+    props: {},
+  };
+}
+
 const Home: NextPage = () => {
   const [audioLists, setAudioLists] = useState<
     ReactJkMusicPlayerAudioListProps[]
