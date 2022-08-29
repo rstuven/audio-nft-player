@@ -7,7 +7,7 @@ import memoize from "promise-memoize";
 import { ReactJkMusicPlayerAudioListProps } from "react-jinke-music-player";
 import "react-jinke-music-player/assets/index.css";
 import { Alchemy, Network, OwnedNftsResponse } from "alchemy-sdk";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   init as initializeOnboard,
   useConnectWallet,
@@ -76,12 +76,23 @@ const Home: NextPage = () => {
     ReactJkMusicPlayerAudioListProps[]
   >([]);
   const [owner, setOwner] = useState<string>();
+  const ownerRef = useRef<string>();
+  const [loading, setLoading] = useState<boolean>();
+
+  const setOwnerRef = useCallback((newOwner: string | undefined) => {
+    setOwner(newOwner);
+    ownerRef.current = newOwner;
+  }, []);
 
   useEffect(() => {
     if (!owner) return;
 
     async function loadAudioNfts(owner: string) {
+      setLoading(true);
       for await (const newAudioLists of getAudioLists(owner)) {
+        if (!ownerRef.current) {
+          break;
+        }
         setAudioLists((oldAudioLists) =>
           uniqueBy(
             [...oldAudioLists, ...newAudioLists],
@@ -89,6 +100,7 @@ const Home: NextPage = () => {
           )
         );
       }
+      setLoading(false);
     }
 
     loadAudioNfts(owner).catch(console.error);
@@ -96,21 +108,24 @@ const Home: NextPage = () => {
 
   const [{ wallet, connecting }, connect, disconnect] = useConnectWallet();
 
-  const toggleWallet = useCallback(() => {
+  const onWalletToggleClick = useCallback(() => {
     if (wallet || owner) {
       if (wallet) disconnect(wallet);
-      setOwner(undefined);
+      setOwnerRef(undefined);
+      setLoading(undefined);
       setAudioLists([]);
     } else {
       connect();
     }
-  }, [connect, disconnect, owner, wallet]);
+  }, [connect, disconnect, owner, setOwnerRef, wallet]);
 
   useEffect(() => {
     if (wallet) {
-      setOwner(wallet.accounts[0].ens?.name ?? wallet.accounts[0].address);
+      const newOwner =
+        wallet.accounts[0].ens?.name ?? wallet.accounts[0].address;
+      setOwnerRef(newOwner);
     }
-  }, [wallet]);
+  }, [setOwnerRef, wallet]);
 
   return (
     <>
@@ -130,7 +145,7 @@ const Home: NextPage = () => {
             width: "100%",
           }}
         >
-          <button onClick={toggleWallet} style={{ width: "100%" }}>
+          <button onClick={onWalletToggleClick} style={{ width: "100%" }}>
             {wallet || owner ? "disconnect" : "you"}
           </button>
 
@@ -138,7 +153,7 @@ const Home: NextPage = () => {
             KNOWN_OWNERS.map((owner) => (
               <button
                 key={owner}
-                onClick={() => setOwner(owner)}
+                onClick={() => setOwnerRef(owner)}
                 style={{ width: "100%" }}
               >
                 {owner}
@@ -149,7 +164,13 @@ const Home: NextPage = () => {
 
       {owner && audioLists.length == 0 && (
         <div style={{ paddingTop: 250, width: "100%" }}>
-          <h2 style={{ textAlign: "center" }}>Loading...</h2>
+          <h2 style={{ textAlign: "center" }}>
+            {loading
+              ? "Loading..."
+              : loading === false
+              ? "No audio NFT found."
+              : ""}
+          </h2>
         </div>
       )}
 
