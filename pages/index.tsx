@@ -18,11 +18,19 @@ const ReactJkMusicPlayer = dynamic(() => import("react-jinke-music-player"), {
   ssr: false,
 });
 
-const KNOWN_OWNERS = ["freqncy.eth", "marymaguire.eth", "cleareyes.eth"];
+const KNOWN_OWNERS = [
+  "0xF7B18e107eb36797f4cE36dE756630B9C30969ad", // "freqncy.eth",
+  "0x41d22Fc30AA15eee064139089aa80F688F245315", // "marymaguire.eth",
+  "0x82cE5258Aa5925Bb5c9DA07fA7996e73687a440e", // "cleareyes.eth",
+  "0x7e8608f5893A6a57602A014aB190f7af8069D1E1", // Suave
+];
 
-const alchemy = new Alchemy({
-  network: Network.ETH_MAINNET,
-});
+const networks = [Network.ETH_MAINNET, Network.MATIC_MAINNET].map(
+  (network) =>
+    new Alchemy({
+      network,
+    })
+);
 
 const walletInitializer = injectedModule();
 
@@ -38,32 +46,57 @@ initializeOnboard({
   ],
 });
 
-const getContractMetadata = memoize((contractAddress: string) => {
-  return alchemy.nft.getContractMetadata(contractAddress);
-});
+const getContractMetadata = memoize(
+  (network: Alchemy, contractAddress: string) => {
+    return network.nft.getContractMetadata(contractAddress);
+  }
+);
 
-const getAudioLists = async function* (owner: string) {
-  let pageKey;
-  do {
-    const result: OwnedNftsResponse = await alchemy.nft.getNftsForOwner(owner, {
-      pageKey,
-    });
-    const audioList: ReactJkMusicPlayerAudioListProps[] = [];
-    for (const nft of result.ownedNfts) {
-      if (!nft.rawMetadata?.audio_url) continue;
-      const contract = await getContractMetadata(nft.contract.address);
-      const result: ReactJkMusicPlayerAudioListProps = {
-        name: nft.rawMetadata?.name,
-        musicSrc: nft.rawMetadata?.audio_url,
-        cover: nft.rawMetadata?.image,
-        singer: contract.name,
-      };
-      audioList.push(result);
-    }
-    yield audioList;
-    pageKey = result.pageKey;
-  } while (pageKey);
-};
+function normalizeUrl(url: any) {
+  if (typeof url != "string") return url;
+  return url
+    .replace(/^ar:\//, "https://arweave.net")
+    .replace(/^ipfs:\//, "https://ipfs.io/ipfs");
+}
+
+async function* getAudioLists(owner: string) {
+  for (const network of networks) {
+    let pageKey;
+    do {
+      const result: OwnedNftsResponse = await network.nft.getNftsForOwner(
+        owner,
+        {
+          pageKey,
+        }
+      );
+      const audioList: ReactJkMusicPlayerAudioListProps[] = [];
+      for (const nft of result.ownedNfts) {
+        const musicSrc = normalizeUrl(
+          nft.rawMetadata?.audio_url ?? nft.rawMetadata?.audio
+        );
+        if (typeof musicSrc == "string" && musicSrc != "") {
+          const singer =
+            nft.rawMetadata?.artist ??
+            nft.rawMetadata?.artist_name ??
+            (await getContractMetadata(network, nft.contract.address)).name;
+          const name = (nft.rawMetadata?.name ?? "").replace(
+            " by " + singer,
+            ""
+          );
+          const result: ReactJkMusicPlayerAudioListProps = {
+            name,
+            singer,
+            musicSrc,
+            cover: normalizeUrl(nft.rawMetadata?.image),
+          };
+          audioList.push(result);
+        }
+      }
+      yield audioList;
+      pageKey = result.pageKey;
+    } while (pageKey);
+  }
+}
 
 export async function getStaticProps() {
   return {
@@ -182,14 +215,10 @@ const Home: NextPage = () => {
       {owner && audioLists.length > 0 && (
         <ReactJkMusicPlayer
           audioLists={audioLists}
-          theme="dark"
           mode="full"
-          bounds="body"
+          playMode="orderLoop"
           autoPlay={false}
           glassBg
-          preload
-          showPlay
-          showPlayMode
           showDownload={false}
           showReload={false}
           showThemeSwitch={false}
