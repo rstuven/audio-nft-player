@@ -89,6 +89,7 @@ const Home: NextPage = () => {
 
     async function loadAudioNfts(owner: string) {
       setLoading(true);
+      setAudioLists([]);
       for await (const newAudioLists of getAudioLists(owner)) {
         if (!ownerRef.current) {
           break;
@@ -108,24 +109,28 @@ const Home: NextPage = () => {
 
   const [{ wallet, connecting }, connect, disconnect] = useConnectWallet();
 
+  const clear = useCallback(() => {
+    setOwnerRef(undefined);
+    setLoading(undefined);
+    setAudioLists([]);
+  }, [setOwnerRef]);
+
   const onWalletToggleClick = useCallback(() => {
     if (wallet || owner) {
       if (wallet) disconnect(wallet);
-      setOwnerRef(undefined);
-      setLoading(undefined);
-      setAudioLists([]);
+      clear();
     } else {
       connect();
     }
-  }, [connect, disconnect, owner, setOwnerRef, wallet]);
+  }, [clear, connect, disconnect, owner, wallet]);
 
   useEffect(() => {
     if (wallet) {
-      const newOwner =
-        wallet.accounts[0].ens?.name ?? wallet.accounts[0].address;
-      setOwnerRef(newOwner);
+      setOwnerRef(wallet.accounts[0].ens?.name ?? wallet.accounts[0].address);
+    } else {
+      clear();
     }
-  }, [setOwnerRef, wallet]);
+  }, [clear, setOwnerRef, wallet]);
 
   return (
     <>
