@@ -23,6 +23,9 @@ const KNOWN_OWNERS = [
   "0x41d22Fc30AA15eee064139089aa80F688F245315", // "marymaguire.eth",
   "0x82cE5258Aa5925Bb5c9DA07fA7996e73687a440e", // "cleareyes.eth",
   "0x7e8608f5893A6a57602A014aB190f7af8069D1E1", // Suave
+  "0xd5FfcabF2bA93b4C30698b0398dfbf1af3163A61",
+  "0xf47f5A7F2917800149f638E9f0eD3745D16481C6",
+  "0x7e9F74eCfa5054b8672DB762A2cB977379f33628",
 ];
 
 const networks = [Network.ETH_MAINNET, Network.MATIC_MAINNET].map(
@@ -173,6 +176,12 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
+      {!owner && (
+        <h1 style={{ paddingTop: 250, width: "100%", textAlign: "center" }}>
+          Audio NFT Player
+        </h1>
+      )}
+
       {!connecting && (
         <div
           style={{
@@ -184,32 +193,44 @@ const Home: NextPage = () => {
           }}
         >
           <button onClick={onWalletToggleClick} style={{ width: "100%" }}>
-            {wallet || owner ? "disconnect" : "you"}
+            {wallet || owner
+              ? "listen to another wallet"
+              : "listen to your wallet"}
           </button>
 
-          {!(wallet || owner) &&
-            KNOWN_OWNERS.map((owner) => (
-              <button
-                key={owner}
-                onClick={() => setOwnerRef(owner)}
-                style={{ width: "100%" }}
+          {!(wallet || owner) && (
+            <>
+              <div
+                style={{
+                  textAlign: "center",
+                  fontSize: "smaller",
+                  paddingTop: 10,
+                }}
               >
-                {owner}
-              </button>
-            ))}
+                listen to selected wallets:
+              </div>
+              {KNOWN_OWNERS.map((owner) => (
+                <button
+                  key={owner}
+                  onClick={() => setOwnerRef(owner)}
+                  style={{ width: "100%" }}
+                >
+                  {owner}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 
       {owner && audioLists.length == 0 && (
-        <div style={{ paddingTop: 250, width: "100%" }}>
-          <h2 style={{ textAlign: "center" }}>
-            {loading
-              ? "Loading..."
-              : loading === false
-              ? "No audio NFT found."
-              : ""}
-          </h2>
-        </div>
+        <h2 style={{ paddingTop: 250, width: "100%", textAlign: "center" }}>
+          {loading
+            ? "Loading..."
+            : loading === false
+            ? "No audio NFT found."
+            : ""}
+        </h2>
       )}
 
       {owner && audioLists.length > 0 && (
