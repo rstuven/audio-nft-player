@@ -3,7 +3,6 @@ import Head from "next/head";
 import dynamic from "next/dynamic";
 import uniqueBy from "lodash.uniqby";
 import memoize from "promise-memoize";
-// import styles from '../styles/Home.module.css'
 import { ReactJkMusicPlayerAudioListProps } from "react-jinke-music-player";
 import "react-jinke-music-player/assets/index.css";
 import { Alchemy, Network, OwnedNftsResponse } from "alchemy-sdk";
@@ -74,26 +73,29 @@ async function* getAudioLists(owner: string) {
       );
       const audioList: ReactJkMusicPlayerAudioListProps[] = [];
       for (const nft of result.ownedNfts) {
-        const musicSrc = normalizeUrl(
-          nft.rawMetadata?.audio_url ?? nft.rawMetadata?.audio
-        );
-        if (typeof musicSrc == "string" && musicSrc != "") {
-          const singer =
-            nft.rawMetadata?.artist ??
-            nft.rawMetadata?.artist_name ??
-            (await getContractMetadata(network, nft.contract.address)).name;
-          const name = (nft.rawMetadata?.name ?? "").replace(
-            " by " + singer,
-            ""
-          );
-          const result: ReactJkMusicPlayerAudioListProps = {
-            name,
-            singer,
-            musicSrc,
-            cover: normalizeUrl(nft.rawMetadata?.image),
-          };
-          audioList.push(result);
+        const md = nft.rawMetadata;
+        if (!md) {
+          continue;
         }
+        const musicSrc = normalizeUrl(md.audio_url ?? md.audio);
+        if (typeof musicSrc != "string" || musicSrc == "") {
+          continue;
+        }
+        if (md.external_url?.startsWith("https://arpeggi.io/stem?")) {
+          continue;
+        }
+        const singer =
+          md.artist ??
+          md.artist_name ??
+          (await getContractMetadata(network, nft.contract.address)).name;
+        const name = (md.name ?? "").replace(" by " + singer, "");
+        const result: ReactJkMusicPlayerAudioListProps = {
+          name,
+          singer,
+          musicSrc,
+          cover: normalizeUrl(md.image),
+        };
+        audioList.push(result);
       }
       yield audioList;
       pageKey = result.pageKey;
